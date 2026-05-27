@@ -41,17 +41,38 @@ def is_bofa_grocery(tx):
 
 
 def is_chase_amazon_travel(tx):
-    text = tx_blob(tx)
+    text = tx_text(tx)
 
-    return (
-        ("chase freedom" in text or "chase" in text)
-        and (
-            "amazon" in text
-            or "amzn" in text
-            or "chase travel" in text
-            or "ultimate rewards travel" in text
-        )
-    )
+    amazon_terms = [
+        "amazon",
+        "amzn",
+        "amazon.com",
+        "amazon marketplace",
+        "amazon mktp",
+        "amzn mktp",
+        "amzn digital",
+        "amazon digital",
+        "amazon prime",
+        "prime video",
+        "audible",
+        "kindle",
+        "whole foods"
+    ]
+
+    chase_travel_terms = [
+        "chase travel",
+        "chase ultimate rewards",
+        "ultimate rewards travel",
+        "ultimate rewards",
+        "cxloyalty",
+        "cx loyalty",
+        "travel rewards",
+        "chase rewards travel",
+        "jpmc travel",
+        "jpmorgan travel"
+    ]
+
+    return any(term in text for term in amazon_terms + chase_travel_terms)
 
 
 def send_email(subject, body):
@@ -125,6 +146,15 @@ async def main():
         "alerts": alerts,
     })
 
+for tx in transactions[:20]:
+    print(json.dumps({
+        "account": tx.get("account"),
+        "accountName": tx.get("accountName"),
+        "displayName": tx.get("displayName"),
+        "merchantName": tx.get("merchantName"),
+        "merchant_name": tx.get("merchant_name"),
+        "originalStatement": tx.get("originalStatement"),
+    }, indent=2, default=str))
 
 if __name__ == "__main__":
     asyncio.run(main())
