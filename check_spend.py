@@ -118,11 +118,7 @@ async def login_to_monarch(mm):
 
         mfa_code = pyotp.TOTP(mfa_secret).now()
 
-        await mm.multi_factor_authenticate(
-            email=email,
-            password=password,
-            multi_factor_code=mfa_code,
-        )
+        await mm.multi_factor_authenticate(email, password, mfa_code)
 
 
 async def main():
