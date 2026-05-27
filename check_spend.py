@@ -107,6 +107,16 @@ async def main():
 
     transactions = data.get("allTransactions", {}).get("results", [])
 
+    for tx in transactions[:20]:
+    print(json.dumps({
+        "account": tx.get("account"),
+        "accountName": tx.get("accountName"),
+        "displayName": tx.get("displayName"),
+        "merchantName": tx.get("merchantName"),
+        "merchant_name": tx.get("merchant_name"),
+        "originalStatement": tx.get("originalStatement"),
+    }, indent=2, default=str))
+
     bofa_total = 0
     chase_total = 0
 
@@ -146,15 +156,6 @@ async def main():
         "alerts": alerts,
     })
 
-for tx in transactions[:20]:
-    print(json.dumps({
-        "account": tx.get("account"),
-        "accountName": tx.get("accountName"),
-        "displayName": tx.get("displayName"),
-        "merchantName": tx.get("merchantName"),
-        "merchant_name": tx.get("merchant_name"),
-        "originalStatement": tx.get("originalStatement"),
-    }, indent=2, default=str))
 
 if __name__ == "__main__":
     asyncio.run(main())
