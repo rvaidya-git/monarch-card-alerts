@@ -1,0 +1,30 @@
+name: Check spend
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        env:
+          MONARCH_EMAIL: ${{ secrets.MONARCH_EMAIL }}
+          MONARCH_PASSWORD: ${{ secrets.MONARCH_PASSWORD }}
+          MONARCH_MFA_SECRET_KEY: ${{ secrets.MONARCH_MFA_SECRET_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ALERT_EMAIL_FROM: ${{ secrets.ALERT_EMAIL_FROM }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+        run: python check_spend.py
