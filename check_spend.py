@@ -113,14 +113,81 @@ def is_chase_amazon_travel(tx):
     return any(term in text for term in amazon_terms + chase_travel_terms)
 
 
-def send_email(subject, body):
+def send_email(subject, alerts, period, bofa_total, chase_total):
     resend.api_key = os.environ["RESEND_API_KEY"]
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 650px;">
+        <h2 style="margin-bottom: 8px;">
+            Credit Card Spend Alert
+        </h2>
+
+        <div style="color: #666; margin-bottom: 24px;">
+            Period: <strong>{period}</strong>
+        </div>
+
+        <table
+            cellpadding="12"
+            cellspacing="0"
+            border="0"
+            width="100%"
+            style="border-collapse: collapse; margin-bottom: 24px;"
+        >
+            <tr style="background-color: #f5f5f5;">
+                <th align="left">Category</th>
+                <th align="right">Current Spend</th>
+                <th align="right">Threshold</th>
+            </tr>
+
+            <tr>
+                <td>
+                    BofA Online Shopping / Grocery / Wholesale Clubs
+                </td>
+                <td align="right">
+                    ${bofa_total:,.2f}
+                </td>
+                <td align="right">
+                    ${BOFA_THRESHOLD:,.2f}
+                </td>
+            </tr>
+
+            <tr>
+                <td>
+                    Chase Freedom Amazon / Chase Travel
+                </td>
+                <td align="right">
+                    ${chase_total:,.2f}
+                </td>
+                <td align="right">
+                    ${CHASE_THRESHOLD:,.2f}
+                </td>
+            </tr>
+        </table>
+
+        <div style="
+            background-color: #fff8e1;
+            border: 1px solid #ffe082;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        ">
+            <strong>Triggered Alerts</strong>
+            <ul>
+                {''.join(f'<li>{alert}</li>' for alert in alerts)}
+            </ul>
+        </div>
+
+        <div style="font-size: 12px; color: #777;">
+            Generated automatically from Monarch Money transaction data.
+        </div>
+    </div>
+    """
 
     resend.Emails.send({
         "from": os.environ["ALERT_EMAIL_FROM"],
         "to": [os.environ["ALERT_EMAIL_TO"]],
         "subject": subject,
-        "text": body,
+        "html": html,
     })
 
 
@@ -201,7 +268,10 @@ async def main():
         print("Sending alert email.")
         send_email(
             subject=f"Credit card spend alert — {period}",
-            body="\n".join(alerts),
+            alerts=alerts,
+            period=period,
+            bofa_total=bofa_total,
+            chase_total=chase_total,
         )
         print("Email send attempted.")
     else:
