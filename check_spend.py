@@ -13,6 +13,7 @@ CHASE_THRESHOLD = 1500
 
 # Update this after checking your GitHub Action logs.
 CHASE_FREEDOM_ACCOUNT_NAME = "Freedom Card"
+BOFA_ACCOUNT_NAME = "R\u2019s BofA Credit Card"
 
 
 def quarter_range():
@@ -32,17 +33,40 @@ def tx_amount(tx):
     return abs(float(tx.get("amount", 0) or 0))
 
 
-def is_bofa_grocery(tx):
+def is_bofa_eligible_category(tx):
     text = tx_text(tx)
 
-    return (
-        ("bank of america" in text or "bofa" in text)
-        and (
-            "grocery" in text
-            or "groceries" in text
-            or "supermarket" in text
-        )
-    )
+    account_name = (
+        str(tx.get("accountName", "")) + " " +
+        str(tx.get("displayName", "")) + " " +
+        str(tx.get("account", ""))
+    ).lower()
+
+    if BOFA_ACCOUNT_NAME.lower() not in account_name:
+        return False
+
+    eligible_terms = [
+        "online shopping",
+        "shopping",
+        "ecommerce",
+        "e-commerce",
+        "grocery",
+        "groceries",
+        "grocery stores",
+        "supermarket",
+        "supermarkets",
+        "wholesale club",
+        "wholesale clubs",
+        "warehouse club",
+        "warehouse clubs",
+        "costco",
+        "sams club",
+        "sam's club",
+        "bj's",
+        "bjs wholesale"
+    ]
+
+    return any(term in text for term in eligible_terms)
 
 
 def is_chase_amazon_travel(tx):
@@ -143,7 +167,7 @@ async def main():
     for tx in transactions:
         amount = tx_amount(tx)
 
-        if is_bofa_grocery(tx):
+        if is_bofa_eligible_category(tx):
             bofa_total += amount
             bofa_count += 1
 
@@ -155,7 +179,7 @@ async def main():
 
     if bofa_total > BOFA_THRESHOLD:
         alerts.append(
-            f"Bank of America grocery spend is ${bofa_total:.2f}, "
+            f"Bank of America online shopping/grocery/wholesale club spend is ${bofa_total:.2f}, "
             f"above the ${BOFA_THRESHOLD} threshold for {period}."
         )
 
@@ -168,7 +192,7 @@ async def main():
     print(f"Period: {period}")
     print(f"Date range: {start_date} to {end_date}")
     print(f"Transactions found: {len(transactions)}")
-    print(f"BofA grocery total: ${bofa_total:.2f}")
+    print(f"BofA eligible-category total: ${bofa_total:.2f}")
     print(f"BofA matched transactions: {bofa_count}")
     print(f"Chase Amazon/Travel total: ${chase_total:.2f}")
     print(f"Chase matched transactions: {chase_count}")
