@@ -4,12 +4,16 @@ import asyncio
 from datetime import date
 
 import resend
-from monarchmoney import MonarchMoney
+import pyotp
+from monarchmoney import MonarchMoney, RequireMFAException
 
 
 BOFA_THRESHOLD = 2500
 CHASE_THRESHOLD = 1500
+
+# Update this after checking your GitHub Action logs.
 CHASE_FREEDOM_ACCOUNT_NAME = "Freedom Card"
+
 
 def quarter_range():
     today = date.today()
@@ -19,7 +23,8 @@ def quarter_range():
     period = f"{today.year}-{quarter}"
     return start.isoformat(), today.isoformat(), period
 
-def tx_blob(tx):
+
+def tx_text(tx):
     return json.dumps(tx, default=str).lower()
 
 
@@ -28,7 +33,7 @@ def tx_amount(tx):
 
 
 def is_bofa_grocery(tx):
-    text = tx_blob(tx)
+    text = tx_text(tx)
 
     return (
         ("bank of america" in text or "bofa" in text)
@@ -49,9 +54,7 @@ def is_chase_amazon_travel(tx):
         str(tx.get("account", ""))
     ).lower()
 
-    target_account = CHASE_FREEDOM_ACCOUNT_NAME.lower()
-
-    if target_account not in account_name:
+    if CHASE_FREEDOM_ACCOUNT_NAME.lower() not in account_name:
         return False
 
     amazon_terms = [
@@ -83,11 +86,8 @@ def is_chase_amazon_travel(tx):
         "jpmorgan travel"
     ]
 
-    return any(
-        term in text
-        for term in amazon_terms + chase_travel_terms
-    )
-    
+    return any(term in text for term in amazon_terms + chase_travel_terms)
+
 
 def send_email(subject, body):
     resend.api_key = os.environ["RESEND_API_KEY"]
@@ -100,18 +100,36 @@ def send_email(subject, body):
     })
 
 
+async def login_to_monarch(mm):
+    email = os.environ["MONARCH_EMAIL"]
+    password = os.environ["MONARCH_PASSWORD"]
+    mfa_secret = os.environ.get("MONARCH_MFA_SECRET_KEY", "").replace(" ", "").strip()
+
+    try:
+        await mm.login(
+            email=email,
+            password=password,
+            save_session=False,
+            use_saved_session=False,
+        )
+    except RequireMFAException:
+        if not mfa_secret:
+            raise Exception("MONARCH_MFA_SECRET_KEY is missing")
+
+        mfa_code = pyotp.TOTP(mfa_secret).now()
+
+        await mm.multi_factor_authenticate(
+            email=email,
+            password=password,
+            multi_factor_code=mfa_code,
+        )
+
+
 async def main():
     start_date, end_date, period = quarter_range()
 
     mm = MonarchMoney()
-
-    await mm.login(
-        email=os.environ["MONARCH_EMAIL"],
-        password=os.environ["MONARCH_PASSWORD"],
-        mfa_secret_key=os.environ.get("MONARCH_MFA_SECRET_KEY"),
-        save_session=False,
-        use_saved_session=False,
-    )
+    await login_to_monarch(mm)
 
     data = await mm.get_transactions(
         start_date=start_date,
@@ -123,42 +141,51 @@ async def main():
 
     bofa_total = 0
     chase_total = 0
+    bofa_count = 0
+    chase_count = 0
 
     for tx in transactions:
         amount = tx_amount(tx)
 
         if is_bofa_grocery(tx):
             bofa_total += amount
+            bofa_count += 1
 
         if is_chase_amazon_travel(tx):
             chase_total += amount
+            chase_count += 1
 
     alerts = []
 
     if bofa_total > BOFA_THRESHOLD:
         alerts.append(
-            f"BofA grocery spend is ${bofa_total:.2f}, "
-            f"above ${BOFA_THRESHOLD}"
+            f"Bank of America grocery spend is ${bofa_total:.2f}, "
+            f"above the ${BOFA_THRESHOLD} threshold for {period}."
         )
 
     if chase_total > CHASE_THRESHOLD:
         alerts.append(
-            f"Chase Freedom Amazon/Travel spend is "
-            f"${chase_total:.2f}, above ${CHASE_THRESHOLD}"
+            f"Chase Freedom Amazon/Chase Travel spend is ${chase_total:.2f}, "
+            f"above the ${CHASE_THRESHOLD} threshold for {period}."
         )
+
+    print(f"Period: {period}")
+    print(f"Date range: {start_date} to {end_date}")
+    print(f"Transactions found: {len(transactions)}")
+    print(f"BofA grocery total: ${bofa_total:.2f}")
+    print(f"BofA matched transactions: {bofa_count}")
+    print(f"Chase Amazon/Travel total: ${chase_total:.2f}")
+    print(f"Chase matched transactions: {chase_count}")
 
     if alerts:
+        print("Sending alert email.")
         send_email(
             subject=f"Credit card spend alert — {period}",
-            body="\n".join(alerts)
+            body="\n".join(alerts),
         )
-
-    print({
-        "period": period,
-        "bofa_total": bofa_total,
-        "chase_total": chase_total,
-        "alerts": alerts,
-    })
+        print("Email send attempted.")
+    else:
+        print("No alerts because totals are below thresholds or no transactions matched.")
 
 
 if __name__ == "__main__":
