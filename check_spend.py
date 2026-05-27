@@ -9,7 +9,7 @@ from monarchmoney import MonarchMoney
 
 BOFA_THRESHOLD = 2500
 CHASE_THRESHOLD = 1500
-
+CHASE_FREEDOM_ACCOUNT_NAME = "Freedom Card"
 
 def quarter_range():
     today = date.today()
@@ -43,6 +43,17 @@ def is_bofa_grocery(tx):
 def is_chase_amazon_travel(tx):
     text = tx_text(tx)
 
+    account_name = (
+        str(tx.get("accountName", "")) + " " +
+        str(tx.get("displayName", "")) + " " +
+        str(tx.get("account", ""))
+    ).lower()
+
+    target_account = CHASE_FREEDOM_ACCOUNT_NAME.lower()
+
+    if target_account not in account_name:
+        return False
+
     amazon_terms = [
         "amazon",
         "amzn",
@@ -72,8 +83,11 @@ def is_chase_amazon_travel(tx):
         "jpmorgan travel"
     ]
 
-    return any(term in text for term in amazon_terms + chase_travel_terms)
-
+    return any(
+        term in text
+        for term in amazon_terms + chase_travel_terms
+    )
+    
 
 def send_email(subject, body):
     resend.api_key = os.environ["RESEND_API_KEY"]
@@ -106,16 +120,6 @@ async def main():
     )
 
     transactions = data.get("allTransactions", {}).get("results", [])
-
-    for tx in transactions[:20]:
-        print(json.dumps({
-            "account": tx.get("account"),
-            "accountName": tx.get("accountName"),
-            "displayName": tx.get("displayName"),
-            "merchantName": tx.get("merchantName"),
-            "merchant_name": tx.get("merchant_name"),
-            "originalStatement": tx.get("originalStatement"),
-        }, indent=2, default=str))
 
     bofa_total = 0
     chase_total = 0
