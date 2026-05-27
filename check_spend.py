@@ -11,11 +11,13 @@ BOFA_THRESHOLD = 2500
 CHASE_THRESHOLD = 1500
 
 
-def month_range():
+def quarter_range():
     today = date.today()
-    start = today.replace(day=1)
-    return start.isoformat(), today.isoformat(), today.strftime("%Y-%m")
-
+    quarter_start_month = ((today.month - 1) // 3) * 3 + 1
+    start = today.replace(month=quarter_start_month, day=1)
+    quarter = f"Q{((today.month - 1) // 3) + 1}"
+    period = f"{today.year}-{quarter}"
+    return start.isoformat(), today.isoformat(), period
 
 def tx_blob(tx):
     return json.dumps(tx, default=str).lower()
@@ -64,7 +66,7 @@ def send_email(subject, body):
 
 
 async def main():
-    start_date, end_date, month = month_range()
+    start_date, end_date, period = quarter_range()
 
     mm = MonarchMoney()
 
@@ -112,12 +114,12 @@ async def main():
 
     if alerts:
         send_email(
-            subject=f"Credit card spend alert — {month}",
+            subject=f"Credit card spend alert — {period}",
             body="\n".join(alerts)
         )
 
     print({
-        "month": month,
+        "period": period,
         "bofa_total": bofa_total,
         "chase_total": chase_total,
         "alerts": alerts,
