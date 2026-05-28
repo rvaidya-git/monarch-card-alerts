@@ -246,14 +246,16 @@ async def main():
 
     if bofa_total > BOFA_THRESHOLD:
         alerts.append(
-            f"Bank of America online shopping/grocery/wholesale club spend is ${bofa_total:.2f}, "
-            f"above the ${BOFA_THRESHOLD} threshold for {period}."
+            f"Bank of America online shopping/grocery/wholesale club spend is "
+            f"${bofa_total:,.2f}, above the ${BOFA_THRESHOLD:,.2f} threshold "
+            f"for {period}."
         )
 
     if chase_total > CHASE_THRESHOLD:
         alerts.append(
-            f"Chase Freedom Amazon/Chase Travel spend is ${chase_total:.2f}, "
-            f"above the ${CHASE_THRESHOLD} threshold for {period}."
+            f"Chase Freedom Amazon/Chase Travel spend is "
+            f"${chase_total:,.2f}, above the ${CHASE_THRESHOLD:,.2f} threshold "
+            f"for {period}."
         )
 
     print(f"Period: {period}")
