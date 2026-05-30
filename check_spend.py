@@ -225,7 +225,6 @@ async def login_to_monarch(mm):
 
 async def main():
     start_date, end_date, period = quarter_range()
-
     state = load_state()
     
     mm = MonarchMoney()
@@ -255,43 +254,59 @@ async def main():
             chase_total += amount
             chase_count += 1
 
-    alerts = []
+    alerts_to_send = []
 
-    if bofa_total > BOFA_THRESHOLD:
-        alerts.append(
-            f"Bank of America online shopping/grocery/wholesale club spend is "
-            f"${bofa_total:,.2f}, above the ${BOFA_THRESHOLD:,.2f} threshold "
-            f"for {period}."
-        )
-
-    if chase_total > CHASE_THRESHOLD:
-        alerts.append(
-            f"Chase Freedom Amazon/Chase Travel spend is "
-            f"${chase_total:,.2f}, above the ${CHASE_THRESHOLD:,.2f} threshold "
-            f"for {period}."
-        )
+    bofa_key = f"{period}:BOFA"
+    chase_key = f"{period}:CHASE"
 
     print(f"Period: {period}")
     print(f"Date range: {start_date} to {end_date}")
     print(f"Transactions found: {len(transactions)}")
-    print(f"BofA eligible-category total: ${bofa_total:.2f}")
+    print(f"BofA eligible-category total: ${bofa_total:,.2f}")
     print(f"BofA matched transactions: {bofa_count}")
-    print(f"Chase Amazon/Travel total: ${chase_total:.2f}")
+    print(f"Chase Amazon/Travel total: ${chase_total:,.2f}")
     print(f"Chase matched transactions: {chase_count}")
+    print(f"BofA alert key: {bofa_key}")
+    print(f"Chase alert key: {chase_key}")
 
-    if alerts:
+    if bofa_total > BOFA_THRESHOLD and not state.get(bofa_key):
+        alerts_to_send.append(
+            f"Bank of America online shopping/grocery/wholesale club spend is "
+            f"${bofa_total:,.2f}, above the ${BOFA_THRESHOLD:,.2f} threshold "
+            f"for {period}."
+        )
+        state[bofa_key] = True
+        print("BofA alert triggered.")
+
+    elif bofa_total > BOFA_THRESHOLD and state.get(bofa_key):
+        print("BofA is over threshold, but alert was already sent for this period.")
+
+    if chase_total > CHASE_THRESHOLD and not state.get(chase_key):
+        alerts_to_send.append(
+            f"Chase Freedom Amazon/Chase Travel spend is "
+            f"${chase_total:,.2f}, above the ${CHASE_THRESHOLD:,.2f} threshold "
+            f"for {period}."
+        )
+        state[chase_key] = True
+        print("Chase alert triggered.")
+
+    elif chase_total > CHASE_THRESHOLD and state.get(chase_key):
+        print("Chase is over threshold, but alert was already sent for this period.")
+
+    if alerts_to_send:
         print("Sending alert email.")
         send_email(
             subject=f"Credit card spend alert — {period}",
-            alerts=alerts,
+            alerts=alerts_to_send,
             period=period,
             bofa_total=bofa_total,
             chase_total=chase_total,
         )
         print("Email send attempted.")
     else:
-        print("No alerts because totals are below thresholds or no transactions matched.")
+        print("No new alerts to send.")
 
+    save_state(state)
 
 if __name__ == "__main__":
     asyncio.run(main())
