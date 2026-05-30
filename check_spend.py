@@ -7,7 +7,9 @@ import resend
 import pyotp
 from monarchmoney import MonarchMoney, RequireMFAException
 
+from pathlib import Path
 
+STATE_FILE = Path("alert_state.json")
 BOFA_THRESHOLD = 2500
 CHASE_THRESHOLD = 1500
 
@@ -15,7 +17,16 @@ CHASE_THRESHOLD = 1500
 CHASE_FREEDOM_ACCOUNT_NAME = "Freedom Card"
 BOFA_ACCOUNT_NAME = "R\u2019s BofA Credit Card"
 
+def load_state():
+    if STATE_FILE.exists():
+        return json.loads(STATE_FILE.read_text())
+    return {}
 
+
+def save_state(state):
+    STATE_FILE.write_text(json.dumps(state, indent=2, sort_keys=True))
+    
+    
 def quarter_range():
     today = date.today()
     quarter_start_month = ((today.month - 1) // 3) * 3 + 1
@@ -215,6 +226,8 @@ async def login_to_monarch(mm):
 async def main():
     start_date, end_date, period = quarter_range()
 
+    state = load_state()
+    
     mm = MonarchMoney()
     await login_to_monarch(mm)
 
