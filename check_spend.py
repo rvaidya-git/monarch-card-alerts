@@ -80,9 +80,10 @@ def is_bofa_eligible_category(tx):
     return any(term in text for term in eligible_terms)
 
 
-def is_chase_amazon_travel(tx):
+def is_chase_q3_bonus_category(tx):
     text = tx_text(tx)
 
+    # FIRST: Ensure transaction belongs to the Chase Freedom card.
     account_name = (
         str(tx.get("accountName", "")) + " " +
         str(tx.get("displayName", "")) + " " +
@@ -92,36 +93,74 @@ def is_chase_amazon_travel(tx):
     if CHASE_FREEDOM_ACCOUNT_NAME.lower() not in account_name:
         return False
 
-    amazon_terms = [
-        "amazon",
-        "amzn",
-        "amazon.com",
-        "amazon marketplace",
-        "amazon mktp",
-        "amzn mktp",
-        "amzn digital",
-        "amazon digital",
-        "amazon prime",
-        "prime video",
-        "audible",
-        "kindle",
-        "whole foods"
+    # Q3 2026 Chase Freedom rotating categories:
+    # July 1 - September 30, 2026
+
+    gas_ev_terms = [
+        "gas station",
+        "gas stations",
+        "gasoline",
+        "fuel",
+        "service station",
+        "ev charging",
+        "electric vehicle charging",
+        "charging station",
+        "chargepoint",
+        "electrify america",
+        "evgo"
     ]
 
-    chase_travel_terms = [
-        "chase travel",
-        "chase ultimate rewards",
-        "ultimate rewards travel",
-        "ultimate rewards",
-        "cxloyalty",
-        "cx loyalty",
-        "travel rewards",
-        "chase rewards travel",
-        "jpmc travel",
-        "jpmorgan travel"
+    public_transit_terms = [
+        "public transit",
+        "transit",
+        "train",
+        "rail",
+        "subway",
+        "metro",
+        "bus",
+        "ferry",
+        "toll",
+        "tolls",
+        "toll bridge",
+        "highway toll",
+        "parking",
+        "parking lot",
+        "parking garage",
+        "garage"
     ]
 
-    return any(term in text for term in amazon_terms + chase_travel_terms)
+    live_entertainment_terms = [
+        "live entertainment",
+        "concert",
+        "concerts",
+        "sporting event",
+        "sporting events",
+        "sports ticket",
+        "ticketmaster",
+        "seatgeek",
+        "stubhub",
+        "live nation",
+        "zoo",
+        "zoos",
+        "amusement park",
+        "amusement parks",
+        "theme park",
+        "theme parks"
+    ]
+
+    united_way_terms = [
+        "united way",
+        "unitedway"
+    ]
+
+    eligible_terms = (
+        gas_ev_terms
+        + public_transit_terms
+        + live_entertainment_terms
+        + united_way_terms
+    )
+
+    return any(term in text for term in eligible_terms)
 
 
 def send_email(subject, alerts, period, bofa_total, chase_total):
@@ -164,7 +203,7 @@ def send_email(subject, alerts, period, bofa_total, chase_total):
 
             <tr>
                 <td>
-                    Chase Freedom Amazon / Chase Travel
+                    Chase Freedom Bonus Category Transactions
                 </td>
                 <td align="right">
                     ${chase_total:,.2f}
@@ -269,7 +308,7 @@ async def main():
             bofa_total += amount
             bofa_count += 1
 
-        if is_chase_amazon_travel(tx):
+        if is_chase_q3_bonus_category(tx):
             chase_total += amount
             chase_count += 1
 
@@ -283,7 +322,7 @@ async def main():
     print(f"Transactions found: {len(transactions)}")
     print(f"BofA eligible-category total: ${bofa_total:,.2f}")
     print(f"BofA matched transactions: {bofa_count}")
-    print(f"Chase Amazon/Travel total: ${chase_total:,.2f}")
+    print(f"Chase quarterly bonus total: ${chase_total:,.2f}")
     print(f"Chase matched transactions: {chase_count}")
     print(f"BofA alert key: {bofa_key}")
     print(f"Chase alert key: {chase_key}")
@@ -302,7 +341,7 @@ async def main():
 
     if chase_total > CHASE_THRESHOLD and not state.get(chase_key):
         alerts_to_send.append(
-            f"Chase Freedom Amazon/Chase Travel spend is "
+            f"Chase Freedom Quarterly Bonus Category spend is "
             f"${chase_total:,.2f}, above the ${CHASE_THRESHOLD:,.2f} threshold "
             f"for {period}."
         )
