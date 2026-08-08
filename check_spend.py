@@ -10,8 +10,8 @@ from monarchmoney import MonarchMoney, RequireMFAException
 from pathlib import Path
 
 STATE_FILE = Path("alert_state.json")
-BOFA_THRESHOLD = 2500
-CHASE_THRESHOLD = 1500
+BOFA_THRESHOLD = 2
+CHASE_THRESHOLD = 1
 
 # Update this after checking your GitHub Action logs.
 CHASE_FREEDOM_ACCOUNT_NAME = "Freedom Card"
