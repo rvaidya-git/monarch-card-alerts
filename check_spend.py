@@ -205,7 +205,13 @@ def send_email(subject, alerts, period, bofa_total, chase_total):
 async def login_to_monarch(mm):
     email = os.environ["MONARCH_EMAIL"]
     password = os.environ["MONARCH_PASSWORD"]
-    mfa_secret = os.environ.get("MONARCH_MFA_SECRET_KEY", "").replace(" ", "").strip()
+
+    # Keep this available in case MFA is re-enabled later.
+    mfa_secret = (
+        os.environ.get("MONARCH_MFA_SECRET_KEY", "")
+        .replace(" ", "")
+        .strip()
+    )
 
     try:
         await mm.login(
@@ -214,13 +220,26 @@ async def login_to_monarch(mm):
             save_session=False,
             use_saved_session=False,
         )
+
+        print("Logged into Monarch without MFA.")
+
     except RequireMFAException:
+        print("Monarch requires MFA.")
+
         if not mfa_secret:
-            raise Exception("MONARCH_MFA_SECRET_KEY is missing")
+            raise Exception(
+                "Monarch requires MFA, but MONARCH_MFA_SECRET_KEY is missing."
+            )
 
         mfa_code = pyotp.TOTP(mfa_secret).now()
 
-        await mm.multi_factor_authenticate(email, password, mfa_code)
+        await mm.multi_factor_authenticate(
+            email,
+            password,
+            mfa_code
+        )
+
+        print("Logged into Monarch using MFA.")
 
 
 async def main():
