@@ -27,6 +27,16 @@ def save_state(state):
     STATE_FILE.write_text(json.dumps(state, indent=2, sort_keys=True))
     
     
+def is_last_day_of_month():
+    today = date.today()
+    tomorrow = today.fromordinal(today.toordinal() + 1)
+    return tomorrow.month != today.month
+
+
+def current_month_key():
+    return date.today().strftime("%Y-%m")
+
+
 def quarter_range():
     today = date.today()
     quarter_start_month = ((today.month - 1) // 3) * 3 + 1
@@ -351,8 +361,13 @@ async def main():
     elif chase_total > CHASE_THRESHOLD and state.get(chase_key):
         print("Chase is over threshold, but alert was already sent for this period.")
 
+    # -------------------------------------------------------
+    # THRESHOLD ALERT EMAIL
+    # -------------------------------------------------------
+
     if alerts_to_send:
-        print("Sending alert email.")
+        print("Sending threshold alert email.")
+
         send_email(
             subject=f"Credit card spend alert — {period}",
             alerts=alerts_to_send,
@@ -360,9 +375,51 @@ async def main():
             bofa_total=bofa_total,
             chase_total=chase_total,
         )
-        print("Email send attempted.")
+
+        print("Threshold alert email sent.")
     else:
-        print("No new alerts to send.")
+        print("No new threshold alerts to send.")
+
+
+    # -------------------------------------------------------
+    # MONTH-END SUMMARY EMAIL
+    # -------------------------------------------------------
+
+    month = current_month_key()
+    month_end_key = f"{month}:MONTH_END_SUMMARY"
+
+    if is_last_day_of_month():
+
+        if not state.get(month_end_key):
+
+            print(f"Last day of {month}. Sending month-end summary.")
+
+            month_end_message = [
+                f"Month-end update for {month}. "
+                f"These totals represent your current {period} quarter-to-date spend."
+            ]
+
+            send_email(
+                subject=f"Credit card month-end summary — {month}",
+                alerts=month_end_message,
+                period=period,
+                bofa_total=bofa_total,
+                chase_total=chase_total,
+            )
+
+            state[month_end_key] = True
+
+            print("Month-end summary email sent.")
+
+        else:
+            print(
+                f"Month-end summary for {month} was already sent. "
+                f"Skipping duplicate email."
+            )
+
+    else:
+        print("Today is not the last day of the month.")
+
 
     save_state(state)
 
