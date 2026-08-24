@@ -69,6 +69,7 @@ def is_bofa_eligible_category(tx):
     eligible_terms = [
         "online shopping",
         "shopping",
+        "amazon",
         "ecommerce",
         "whole foods",
         "trader joe's",
